@@ -3,8 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"github.com/oxio/kvf/internal/kvf"
-	"github.com/oxio/kvf/internal/parser"
+	"github.com/oxio/kvf/pkg/kvf"
 	"github.com/spf13/cobra"
 )
 
@@ -23,9 +22,9 @@ func newGetCmd() *cobra.Command {
 			files := args[:len(args)-1]
 			key := args[len(args)-1]
 
-			var foundItem *parser.Item
+			var foundItem *kvf.Item
 			for _, file := range files {
-				repo := kvf.NewRepo(file, *skipMissingFiles)
+				repo := kvf.NewFileRepo(file, *skipMissingFiles)
 
 				currentItem, err := repo.Get(key)
 				if err != nil {
