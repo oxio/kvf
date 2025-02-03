@@ -2,8 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/oxio/kvf/internal/kvf"
-	"github.com/oxio/kvf/internal/parser"
+	"github.com/oxio/kvf/pkg/kvf"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +21,8 @@ func newSetCmd() *cobra.Command {
 			value := args[len(args)-1]
 
 			for _, file := range files {
-				repo := kvf.NewRepo(file, false)
-				item, err := parser.NewItem(key, value)
+				repo := kvf.NewFileRepo(file, false)
+				item, err := kvf.NewItem(key, value)
 				if err != nil {
 					return err
 				}

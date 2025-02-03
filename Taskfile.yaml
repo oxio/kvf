@@ -28,4 +28,4 @@ tasks:
   build:smaller:
     desc: "Build smaller binary"
     cmds:
-      - go build -ldflags "-s" -o build/{{.BINARY_NAME}}
+      - go build -ldflags "-s -w" -o build/{{.BINARY_NAME}}

@@ -5,34 +5,33 @@ import (
 	"errors"
 	"fmt"
 	"github.com/oxio/kvf/internal/fileop"
-	"github.com/oxio/kvf/internal/parser"
 )
 
 type Repo interface {
-	Get(key string) (*parser.Item, error)
-	Set(item *parser.Item) error
+	Get(key string) (*Item, error)
+	Set(item *Item) error
 }
 
-var _ Repo = &RepoImpl{}
+var _ Repo = &FileRepo{}
 
 var (
 	ErrItemNotFound = errors.New("item not found")
 )
 
-type RepoImpl struct {
+type FileRepo struct {
 	adapter fileop.FileAdapter
-	parser  *parser.LineParser
+	parser  *LineParser
 }
 
-func NewRepo(filePath string, noErrorOnInaccessibleFile bool) *RepoImpl {
-	return &RepoImpl{
+func NewFileRepo(filePath string, noErrorOnInaccessibleFile bool) *FileRepo {
+	return &FileRepo{
 		adapter: fileop.NewFileAdapter(filePath, noErrorOnInaccessibleFile),
-		parser:  parser.NewLineParser(),
+		parser:  NewLineParser(),
 	}
 }
 
-func (r *RepoImpl) FindAll() (*[]*parser.Item, error) {
-	var collection = parser.NewItemCollection()
+func (r *FileRepo) FindAll() (*[]*Item, error) {
+	var collection = NewItemCollection()
 	err := r.adapter.ReadByLine(r.makeReader(collection))
 	if err != nil {
 		return nil, err
@@ -40,12 +39,12 @@ func (r *RepoImpl) FindAll() (*[]*parser.Item, error) {
 	return collection.Items, nil
 }
 
-func (r *RepoImpl) Get(key string) (*parser.Item, error) {
+func (r *FileRepo) Get(key string) (*Item, error) {
 	if "" == key {
 		return nil, fmt.Errorf("key is empty")
 	}
 
-	var collection = parser.NewItemCollection()
+	var collection = NewItemCollection()
 	err := r.adapter.ReadByLine(r.makeReader(collection))
 	if err != nil {
 		return nil, err
@@ -63,8 +62,8 @@ func (r *RepoImpl) Get(key string) (*parser.Item, error) {
 	return nil, ErrItemNotFound
 }
 
-func (r *RepoImpl) Set(item *parser.Item) error {
-	var collection = parser.NewItemCollection()
+func (r *FileRepo) Set(item *Item) error {
+	var collection = NewItemCollection()
 	read := r.makeReader(collection)
 	update := r.makeUpdater(collection, item)
 	write := r.makeWriter(collection)
@@ -72,7 +71,7 @@ func (r *RepoImpl) Set(item *parser.Item) error {
 	return r.adapter.EnsureUpdate(read, update, write)
 }
 
-func (r *RepoImpl) makeReader(collection *parser.ItemCollection) fileop.ReaderFunc {
+func (r *FileRepo) makeReader(collection *ItemCollection) fileop.ReaderFunc {
 	return func(line string) error {
 		item, err := r.parser.Parse(line)
 		if err != nil {
@@ -83,7 +82,7 @@ func (r *RepoImpl) makeReader(collection *parser.ItemCollection) fileop.ReaderFu
 	}
 }
 
-func (r *RepoImpl) makeUpdater(collection *parser.ItemCollection, incoming *parser.Item) fileop.UpdateFunc {
+func (r *FileRepo) makeUpdater(collection *ItemCollection, incoming *Item) fileop.UpdateFunc {
 	return func() error {
 		found := false
 		for k, item := range *collection.Items {
@@ -101,7 +100,7 @@ func (r *RepoImpl) makeUpdater(collection *parser.ItemCollection, incoming *pars
 	}
 }
 
-func (r *RepoImpl) makeWriter(collection *parser.ItemCollection) fileop.WriterFunc {
+func (r *FileRepo) makeWriter(collection *ItemCollection) fileop.WriterFunc {
 	return func(writer *bufio.Writer) (bytesWritten int64, err error) {
 		for _, item := range *collection.Items {
 			var n, err = writer.WriteString(item.ToLine())
