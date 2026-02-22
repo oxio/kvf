@@ -1,7 +1,12 @@
-#!/usr/bin/env bash
+#!/bin/bash
 #
 # Install script for kvf - https://github.com/oxio/kvf
 # Auto-detects OS and architecture and downloads the correct binary
+#
+# Usage:
+#   curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
+#   curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash -s -- v1.0.0
+#   ./install.sh [VERSION]
 #
 
 set -e
@@ -22,6 +27,31 @@ info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
 step() { echo -e "${BLUE}[...]${NC} $1"; }
+
+# Show usage information
+usage() {
+    echo "Usage: $0 [OPTIONS] [VERSION]"
+    echo ""
+    echo "Install kvf - Key Value File CLI tool"
+    echo ""
+    echo "Arguments:"
+    echo "  VERSION       Specific version to install (e.g., v1.0.0)"
+    echo "                If not specified, installs the latest version"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message"
+    echo "  -f, --force   Force reinstall even if already up-to-date"
+    echo ""
+    echo "Examples:"
+    echo "  $0                    # Install latest version"
+    echo "  $0 v1.0.0             # Install specific version"
+    echo "  $0 --force            # Force reinstall latest"
+    echo "  $0 v1.0.0 --force     # Force reinstall v1.0.0"
+    echo ""
+    echo "One-liner usage:"
+    echo "  curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash"
+    echo "  curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash -s -- v1.0.0"
+}
 
 # Detect operating system
 detect_os() {
@@ -54,6 +84,23 @@ get_latest_version() {
         error "Neither curl nor wget is available. Please install one of them."
     fi
     echo "$version"
+}
+
+# Validate that a version exists
+validate_version() {
+    local version="$1"
+    local release_url="https://github.com/${REPO}/releases/tag/${version}"
+    
+    if command -v curl &> /dev/null; then
+        if ! curl -sL -o /dev/null -w "%{http_code}" "$release_url" | grep -q "200"; then
+            return 1
+        fi
+    elif command -v wget &> /dev/null; then
+        if ! wget -q --spider "$release_url"; then
+            return 1
+        fi
+    fi
+    return 0
 }
 
 # Get currently installed version
@@ -114,8 +161,45 @@ determine_install_dir() {
     fi
 }
 
+# Parse command line arguments
+parse_args() {
+    FORCE=false
+    REQUESTED_VERSION=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            -f|--force)
+                FORCE=true
+                shift
+                ;;
+            v*)
+                # Version argument (starts with 'v')
+                REQUESTED_VERSION="$1"
+                shift
+                ;;
+            *)
+                # Unknown argument - could be version without 'v' prefix
+                if [[ $1 =~ ^[0-9] ]]; then
+                    REQUESTED_VERSION="v$1"
+                else
+                    warn "Unknown argument: $1"
+                    usage
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+}
+
 # Main installation logic
 main() {
+    parse_args "$@"
+    
     # Detect OS and architecture
     OS=$(detect_os)
     ARCH=$(detect_arch)
@@ -134,30 +218,45 @@ main() {
     EXISTING_BINARY=$(find_existing_binary)
     INSTALLED_VERSION=$(get_installed_version "$EXISTING_BINARY")
     
-    # Get latest version
-    step "Checking for latest version..."
-    LATEST_VERSION=$(get_latest_version)
-    if [ -z "$LATEST_VERSION" ]; then
-        error "Could not determine latest version. Please check your internet connection."
+    # Determine version to install
+    if [ -n "$REQUESTED_VERSION" ]; then
+        TARGET_VERSION="$REQUESTED_VERSION"
+        step "Validating version ${TARGET_VERSION}..."
+        if ! validate_version "$TARGET_VERSION"; then
+            error "Version ${TARGET_VERSION} not found. Check available versions at:"
+            echo "  https://github.com/${REPO}/releases"
+        fi
+    else
+        step "Checking for latest version..."
+        TARGET_VERSION=$(get_latest_version)
+        if [ -z "$TARGET_VERSION" ]; then
+            error "Could not determine latest version. Please check your internet connection."
+        fi
     fi
     
-    # Determine if this is an update or fresh install
-    if [ -n "$INSTALLED_VERSION" ]; then
-        if [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+    # Check if we need to install
+    if [ "$FORCE" = false ] && [ -n "$INSTALLED_VERSION" ]; then
+        if [ "$INSTALLED_VERSION" = "$TARGET_VERSION" ]; then
             info "Already up to date: ${BINARY_NAME} ${INSTALLED_VERSION}"
             echo ""
             echo "Current installation: ${EXISTING_BINARY}"
-            echo "To reinstall, run: curl -sL ... | bash"
+            echo "To reinstall, run: $0 --force"
             exit 0
         else
-            info "Update available: ${INSTALLED_VERSION} → ${LATEST_VERSION}"
+            info "Update available: ${INSTALLED_VERSION} → ${TARGET_VERSION}"
+        fi
+    elif [ "$FORCE" = true ] && [ -n "$INSTALLED_VERSION" ]; then
+        if [ "$INSTALLED_VERSION" = "$TARGET_VERSION" ]; then
+            info "Force reinstalling ${BINARY_NAME} ${TARGET_VERSION}"
+        else
+            info "Downgrading: ${INSTALLED_VERSION} → ${TARGET_VERSION}"
         fi
     else
-        info "Installing ${BINARY_NAME} ${LATEST_VERSION}"
+        info "Installing ${BINARY_NAME} ${TARGET_VERSION}"
     fi
     
     # Construct download URL
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${LATEST_VERSION}/${BINARY}"
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TARGET_VERSION}/${BINARY}"
     
     step "Downloading: $DOWNLOAD_URL"
     
@@ -202,9 +301,13 @@ main() {
     # Success message
     echo ""
     if [ -n "$INSTALLED_VERSION" ]; then
-        info "Successfully updated ${BINARY_NAME} from ${INSTALLED_VERSION} to ${LATEST_VERSION}"
+        if [ "$INSTALLED_VERSION" = "$TARGET_VERSION" ]; then
+            info "Successfully reinstalled ${BINARY_NAME} ${TARGET_VERSION}"
+        else
+            info "Successfully updated ${BINARY_NAME} from ${INSTALLED_VERSION} to ${TARGET_VERSION}"
+        fi
     else
-        info "Successfully installed ${BINARY_NAME} ${LATEST_VERSION}"
+        info "Successfully installed ${BINARY_NAME} ${TARGET_VERSION}"
     fi
     echo ""
     echo "Binary location: ${DEST}"
