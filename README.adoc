@@ -8,12 +8,16 @@ Super simple file based Key-Value command line tool that works with concurrent R
 
 One-liner that auto-detects your OS and architecture:
 
+==== Using curl
+
 [source, bash]
 ----
-# Using curl
 curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
+----
 
-# Using wget
+==== Using wget
+
+----
 wget -qO- https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
 ----
 
