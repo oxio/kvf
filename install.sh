@@ -1,19 +1,25 @@
 #!/bin/bash
 #
-# Install script for kvf - https://github.com/oxio/kvf
-# Auto-detects OS and architecture and downloads the correct binary
+# Universal Go Binary Installer
+# Auto-detects OS and architecture and downloads the correct binary from GitHub releases
 #
-# Usage:
-#   curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
-#   curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash -s -- v1.0.0
-#   ./install.sh [VERSION]
-#
+# ============================================================================
+# PROJECT CONFIGURATION
+# Edit these variables to customize for your project
+# ============================================================================
+
+GITHUB_REPO="oxio/kvf"              # GitHub repository (owner/repo)
+BINARY_NAME="kvf"                    # Name of the binary
+INSTALL_DIR="/usr/local/bin"         # Default installation directory
+SUPPORTED_OS="darwin linux windows"  # Supported operating systems
+SUPPORTED_ARCH="amd64 arm64 arm"     # Supported architectures
+
+# ============================================================================
+# END OF CONFIGURATION
+# Do not edit below unless you know what you're doing
+# ============================================================================
 
 set -e
-
-REPO="oxio/kvf"
-BINARY_NAME="kvf"
-INSTALL_DIR="/usr/local/bin"
 
 # Colors for output
 RED='\033[0;31m'
@@ -30,27 +36,39 @@ step() { echo -e "${BLUE}[...]${NC} $1"; }
 
 # Show usage information
 usage() {
-    echo "Usage: $0 [OPTIONS] [VERSION]"
-    echo ""
-    echo "Install kvf - Key Value File CLI tool"
-    echo ""
-    echo "Arguments:"
-    echo "  VERSION       Specific version to install (e.g., v1.0.0)"
-    echo "                If not specified, installs the latest version"
-    echo ""
-    echo "Options:"
-    echo "  -h, --help    Show this help message"
-    echo "  -f, --force   Force reinstall even if already up-to-date"
-    echo ""
-    echo "Examples:"
-    echo "  $0                    # Install latest version"
-    echo "  $0 v1.0.0             # Install specific version"
-    echo "  $0 --force            # Force reinstall latest"
-    echo "  $0 v1.0.0 --force     # Force reinstall v1.0.0"
-    echo ""
-    echo "One-liner usage:"
-    echo "  curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash"
-    echo "  curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash -s -- v1.0.0"
+    local script_name
+    if [ -n "$GITHUB_REPO" ]; then
+        script_name="curl -sL https://raw.githubusercontent.com/${GITHUB_REPO}/main/install.sh | bash"
+    else
+        script_name="$0"
+    fi
+    
+    cat << EOF
+Usage: $0 [OPTIONS] [VERSION]
+
+Install ${BINARY_NAME:-binary} from ${GITHUB_REPO:-GitHub}
+
+Arguments:
+  VERSION       Specific version to install (e.g., v1.0.0)
+                If not specified, installs the latest version
+
+Options:
+  -h, --help    Show this help message
+  -f, --force   Force reinstall even if already up-to-date
+  -d, --dir     Custom installation directory (default: ${INSTALL_DIR})
+
+Examples:
+  $0                           # Install latest version
+  $0 v1.0.0                    # Install specific version
+  $0 --force                   # Force reinstall latest
+  $0 v1.0.0 --force            # Force reinstall v1.0.0
+  $0 --dir ~/.local/bin        # Install to custom directory
+
+One-liner usage:
+  ${script_name}
+  ${script_name} -s -- v1.0.0
+  ${script_name} -s -- --dir ~/.local/bin
+EOF
 }
 
 # Detect operating system
@@ -59,7 +77,7 @@ detect_os() {
         Darwin*)    echo "darwin" ;;
         Linux*)     echo "linux" ;;
         CYGWIN*|MINGW*|MSYS*)    echo "windows" ;;
-        *)          error "Unsupported OS: $(uname -s)" ;;
+        *)          error "Unsupported OS: $(uname -s). Supported: ${SUPPORTED_OS}" ;;
     esac
 }
 
@@ -69,7 +87,7 @@ detect_arch() {
         x86_64|amd64)  echo "amd64" ;;
         arm64|aarch64) echo "arm64" ;;
         armv7l|armv7)  echo "arm" ;;
-        *)             error "Unsupported architecture: $(uname -m)" ;;
+        *)             error "Unsupported architecture: $(uname -m). Supported: ${SUPPORTED_ARCH}" ;;
     esac
 }
 
@@ -77,9 +95,9 @@ detect_arch() {
 get_latest_version() {
     local version
     if command -v curl &> /dev/null; then
-        version=$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        version=$(curl -sL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     elif command -v wget &> /dev/null; then
-        version=$(wget -qO- "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        version=$(wget -qO- "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     else
         error "Neither curl nor wget is available. Please install one of them."
     fi
@@ -89,14 +107,14 @@ get_latest_version() {
 # Validate that a version exists
 validate_version() {
     local version="$1"
-    local release_url="https://github.com/${REPO}/releases/tag/${version}"
+    local release_url="https://github.com/${GITHUB_REPO}/releases/tag/${version}"
     
     if command -v curl &> /dev/null; then
-        if ! curl -sL -o /dev/null -w "%{http_code}" "$release_url" | grep -q "200"; then
+        if ! curl -sL -o /dev/null -w "%{http_code}" "$release_url" 2>/dev/null | grep -q "200"; then
             return 1
         fi
     elif command -v wget &> /dev/null; then
-        if ! wget -q --spider "$release_url"; then
+        if ! wget -q --spider "$release_url" 2>/dev/null; then
             return 1
         fi
     fi
@@ -107,10 +125,10 @@ validate_version() {
 get_installed_version() {
     local binary_path="$1"
     if [ -x "$binary_path" ]; then
-        # Try to get version from the binary
-        # The binary may output version via --version or version subcommand
         local version
+        # Try --version flag first
         version=$("$binary_path" --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        # Try version subcommand
         if [ -z "$version" ]; then
             version=$("$binary_path" version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         fi
@@ -126,17 +144,20 @@ download_file() {
     local output="$2"
     
     if command -v curl &> /dev/null; then
-        curl -sL "$url" -o "$output"
+        if ! curl -sL --fail "$url" -o "$output"; then
+            return 1
+        fi
     elif command -v wget &> /dev/null; then
-        wget -q "$url" -O "$output"
-    else
-        error "Neither curl nor wget is available. Please install one of them."
+        if ! wget -q "$url" -O "$output"; then
+            return 1
+        fi
     fi
+    return 0
 }
 
 # Find the existing binary location
 find_existing_binary() {
-    if command -v "$BINARY_NAME" &> /dev/null; then
+    if [ -n "$BINARY_NAME" ] && command -v "$BINARY_NAME" &> /dev/null; then
         command -v "$BINARY_NAME"
     fi
 }
@@ -144,6 +165,13 @@ find_existing_binary() {
 # Determine where to install the binary
 determine_install_dir() {
     local existing_binary="$1"
+    local custom_dir="$2"
+    
+    # If custom directory specified, use it
+    if [ -n "$custom_dir" ]; then
+        echo "$custom_dir"
+        return
+    fi
     
     # If binary exists, use its directory
     if [ -n "$existing_binary" ]; then
@@ -165,6 +193,7 @@ determine_install_dir() {
 parse_args() {
     FORCE=false
     REQUESTED_VERSION=""
+    CUSTOM_INSTALL_DIR=""
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -176,6 +205,13 @@ parse_args() {
                 FORCE=true
                 shift
                 ;;
+            -d|--dir)
+                if [ -z "$2" ] || [[ "$2" == -* ]]; then
+                    error "Option --dir requires a directory path"
+                fi
+                CUSTOM_INSTALL_DIR="$2"
+                shift 2
+                ;;
             v*)
                 # Version argument (starts with 'v')
                 REQUESTED_VERSION="$1"
@@ -185,12 +221,12 @@ parse_args() {
                 # Unknown argument - could be version without 'v' prefix
                 if [[ $1 =~ ^[0-9] ]]; then
                     REQUESTED_VERSION="v$1"
+                    shift
                 else
                     warn "Unknown argument: $1"
                     usage
                     exit 1
                 fi
-                shift
                 ;;
         esac
     done
@@ -200,11 +236,20 @@ parse_args() {
 main() {
     parse_args "$@"
     
+    # Validate configuration
+    if [ -z "$GITHUB_REPO" ]; then
+        error "GITHUB_REPO is not configured. Please edit the script and set GITHUB_REPO."
+    fi
+    
+    if [ -z "$BINARY_NAME" ]; then
+        error "BINARY_NAME is not configured. Please edit the script and set BINARY_NAME."
+    fi
+    
     # Detect OS and architecture
     OS=$(detect_os)
     ARCH=$(detect_arch)
     
-    # For Windows, use .exe extension
+    # Build binary filename based on OS
     if [ "$OS" = "windows" ]; then
         BINARY="${BINARY_NAME}-${OS}-${ARCH}.exe"
     else
@@ -224,7 +269,7 @@ main() {
         step "Validating version ${TARGET_VERSION}..."
         if ! validate_version "$TARGET_VERSION"; then
             error "Version ${TARGET_VERSION} not found. Check available versions at:"
-            echo "  https://github.com/${REPO}/releases"
+            echo "  https://github.com/${GITHUB_REPO}/releases"
         fi
     else
         step "Checking for latest version..."
@@ -256,7 +301,7 @@ main() {
     fi
     
     # Construct download URL
-    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TARGET_VERSION}/${BINARY}"
+    DOWNLOAD_URL="https://github.com/${GITHUB_REPO}/releases/download/${TARGET_VERSION}/${BINARY}"
     
     step "Downloading: $DOWNLOAD_URL"
     
@@ -265,19 +310,24 @@ main() {
     TMP_FILE="${TMP_DIR}/${BINARY_NAME}"
     
     # Download the binary
-    download_file "$DOWNLOAD_URL" "$TMP_FILE"
+    if ! download_file "$DOWNLOAD_URL" "$TMP_FILE"; then
+        rm -rf "$TMP_DIR"
+        error "Download failed. Binary might not be available for your platform."
+        echo "  Expected: ${BINARY}"
+        echo "  Check available assets at: https://github.com/${GITHUB_REPO}/releases/tag/${TARGET_VERSION}"
+    fi
     
     # Check if download was successful
     if [ ! -s "$TMP_FILE" ]; then
         rm -rf "$TMP_DIR"
-        error "Download failed or file is empty. Binary might not be available for your platform."
+        error "Downloaded file is empty. Binary might not be available for your platform."
     fi
     
     # Make executable
     chmod +x "$TMP_FILE"
     
     # Determine install directory
-    INSTALL_DEST=$(determine_install_dir "$EXISTING_BINARY")
+    INSTALL_DEST=$(determine_install_dir "$EXISTING_BINARY" "$CUSTOM_INSTALL_DIR")
     DEST="${INSTALL_DEST}/${BINARY_NAME}"
     
     # Install the binary
