@@ -5,6 +5,18 @@ import (
 	"strings"
 )
 
+// escapeValue escapes backslashes and the specified quote character in a value
+func escapeValue(val string, quote string) string {
+	// First escape backslashes, then escape the quote char
+	result := strings.ReplaceAll(val, "\\", "\\\\")
+	if quote == "\"" {
+		result = strings.ReplaceAll(result, "\"", "\\\"")
+	} else {
+		result = strings.ReplaceAll(result, "'", "\\'")
+	}
+	return result
+}
+
 // ParseState represents the parsing state of an Item
 type ParseState int
 
@@ -27,17 +39,31 @@ type Item struct {
 }
 
 func NewItem(key string, val string) (*Item, error) {
-	if "" == key {
+	if key == "" {
 		return nil, fmt.Errorf("key is empty")
 	}
 	item := &Item{
 		Key: key,
 		Val: val,
 	}
-	// If value contains newlines, wrap it in double quotes
-	if strings.Contains(val, "\n") {
+
+	hasDoubleQuote := strings.Contains(val, "\"")
+	hasSingleQuote := strings.Contains(val, "'")
+	hasNewline := strings.Contains(val, "\n")
+	hasBackslash := strings.Contains(val, "\\")
+
+	// Determine if quoting is needed and which quote to use
+	if hasNewline || hasBackslash || (hasDoubleQuote && hasSingleQuote) {
+		// Must use double quotes, will need escaping
+		item.Quote = "\""
+	} else if hasDoubleQuote {
+		// Use single quotes to avoid escaping
+		item.Quote = "'"
+	} else if hasSingleQuote {
+		// Use double quotes to avoid escaping
 		item.Quote = "\""
 	}
+
 	return item, nil
 }
 
@@ -62,5 +88,12 @@ func (i *Item) ToLine() string {
 	if i.IsComment {
 		return fmt.Sprintf("# %s\n", i.Val)
 	}
-	return fmt.Sprintf("%s=%s%s%s\n", i.Key, i.Quote, i.Val, i.Quote)
+
+	if i.Quote == "" {
+		return fmt.Sprintf("%s=%s\n", i.Key, i.Val)
+	}
+
+	// Escape the value for quoted output
+	escapedVal := escapeValue(i.Val, i.Quote)
+	return fmt.Sprintf("%s=%s%s%s\n", i.Key, i.Quote, escapedVal, i.Quote)
 }

@@ -5,6 +5,37 @@ import (
 	"strings"
 )
 
+// unescapeValue unescapes backslashes and quote characters in a value
+func unescapeValue(val string, quote string) string {
+	var result strings.Builder
+	escaped := false
+
+	for _, ch := range val {
+		if escaped {
+			if string(ch) == quote {
+				result.WriteString(quote)
+			} else if ch == '\\' {
+				result.WriteRune('\\')
+			} else {
+				// Preserve unknown escape sequences as-is
+				result.WriteRune('\\')
+				result.WriteRune(ch)
+			}
+			escaped = false
+		} else if ch == '\\' {
+			escaped = true
+		} else {
+			result.WriteRune(ch)
+		}
+	}
+	// Handle trailing backslash
+	if escaped {
+		result.WriteRune('\\')
+	}
+
+	return result.String()
+}
+
 type LineParser struct {
 	inMultiLine  bool
 	currentKey   string
@@ -71,8 +102,8 @@ func (p *LineParser) Parse(line string) (*Item, error) {
 				item.ParseState = ParseStateMultiLineStart
 				return item, nil
 			}
-			// Single-line quoted value - strip quotes
-			item.Val = item.Val[1 : len(item.Val)-1]
+			// Single-line quoted value - strip quotes and unescape
+			item.Val = unescapeValue(item.Val[1:len(item.Val)-1], item.Quote)
 		}
 	}
 
@@ -94,7 +125,7 @@ func (p *LineParser) continueMultiLine(line string) (*Item, error) {
 		// Found closing quote - complete the multi-line value
 		p.lineBuffer.WriteString("\n")
 		p.lineBuffer.WriteString(line[:closingIdx])
-		item.Val = p.lineBuffer.String()
+		item.Val = unescapeValue(p.lineBuffer.String(), p.currentQuote)
 		item.ParseState = ParseStateComplete
 
 		// Reset parser state
@@ -112,12 +143,22 @@ func (p *LineParser) continueMultiLine(line string) (*Item, error) {
 }
 
 // isCompleteQuotedValue checks if a quoted value is complete on a single line
+// It must start with the quote, end with the quote, and the ending quote must not be escaped
 func (p *LineParser) isCompleteQuotedValue(val string, quote string) bool {
 	if len(val) < 2 {
 		return false
 	}
-	// Must start and end with the same quote
-	return strings.HasPrefix(val, quote) && strings.HasSuffix(val, quote) && len(val) >= 2
+	// Must start with the quote
+	if !strings.HasPrefix(val, quote) {
+		return false
+	}
+	// Find the closing quote (skipping the opening quote)
+	closingIdx := p.findClosingQuote(val[1:], quote)
+	if closingIdx < 0 {
+		return false
+	}
+	// The closing quote should be at the end of the value
+	return closingIdx == len(val)-2 // -2 because we skipped the first character
 }
 
 // findClosingQuote finds the index of the closing quote in a line,

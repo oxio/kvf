@@ -197,6 +197,6 @@ continues"
 
 	outContent, err := io.ReadAll(outBuff)
 	assert.NoError(t, err)
-	// The escaped quote backslash is preserved
-	assert.Equal(t, "line with \\\"quote\ncontinues", string(outContent))
+	// The escaped quote is now unescaped when reading
+	assert.Equal(t, "line with \"quote\ncontinues", string(outContent))
 }

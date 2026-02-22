@@ -217,3 +217,92 @@ func setUpTestSetCmd() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 
 	return cmd, outBuff, errBuff
 }
+
+// =============================================================================
+// Quote Escaping Integration Tests
+// =============================================================================
+
+func TestSetValue_WithDoubleQuotes(t *testing.T) {
+	filePath := getRandomTestFilePath()
+	cmd, _, _ := setUpTestSetCmd()
+	cmd.SetArgs([]string{filePath, "message", `he said "hello"`})
+
+	err := cmd.Execute()
+	if err == nil {
+		defer removeTestFile(filePath)
+	}
+	assert.NoError(t, err)
+
+	// Should use single quotes to wrap double quotes (no escaping needed)
+	assertFileContentEquals(t, filePath, `message='he said "hello"'`+"\n")
+}
+
+func TestSetValue_WithSingleQuotes(t *testing.T) {
+	filePath := getRandomTestFilePath()
+	cmd, _, _ := setUpTestSetCmd()
+	cmd.SetArgs([]string{filePath, "message", `it's mine`})
+
+	err := cmd.Execute()
+	if err == nil {
+		defer removeTestFile(filePath)
+	}
+	assert.NoError(t, err)
+
+	// Should use double quotes to wrap single quotes (no escaping needed)
+	assertFileContentEquals(t, filePath, `message="it's mine"`+"\n")
+}
+
+func TestSetValue_WithBothQuotes(t *testing.T) {
+	filePath := getRandomTestFilePath()
+	cmd, _, _ := setUpTestSetCmd()
+	cmd.SetArgs([]string{filePath, "message", `both " and ' quotes`})
+
+	err := cmd.Execute()
+	if err == nil {
+		defer removeTestFile(filePath)
+	}
+	assert.NoError(t, err)
+
+	// Must use double quotes and escape the double quotes inside
+	assertFileContentEquals(t, filePath, `message="both \" and ' quotes"`+"\n")
+}
+
+func TestSetValue_WithBackslash(t *testing.T) {
+	filePath := getRandomTestFilePath()
+	cmd, _, _ := setUpTestSetCmd()
+	cmd.SetArgs([]string{filePath, "path", `C:\Users\test`})
+
+	err := cmd.Execute()
+	if err == nil {
+		defer removeTestFile(filePath)
+	}
+	assert.NoError(t, err)
+
+	// Should escape backslashes
+	assertFileContentEquals(t, filePath, `path="C:\\Users\\test"`+"\n")
+}
+
+func TestSetValue_RoundTrip_WithQuotes(t *testing.T) {
+	filePath := getRandomTestFilePath()
+	originalValue := `he said "hello" and she said 'hi'`
+
+	// Set the value
+	cmdSet, _, _ := setUpTestSetCmd()
+	cmdSet.SetArgs([]string{filePath, "message", originalValue})
+	err := cmdSet.Execute()
+	if err == nil {
+		defer removeTestFile(filePath)
+	}
+	assert.NoError(t, err)
+
+	// Get the value back
+	cmdGet := newGetCmd()
+	outBuff := bytes.NewBufferString("")
+	cmdGet.SetOut(outBuff)
+	cmdGet.SetArgs([]string{filePath, "message"})
+	err = cmdGet.Execute()
+	assert.NoError(t, err)
+
+	// Should get the original value back
+	assert.Equal(t, originalValue, outBuff.String())
+}
