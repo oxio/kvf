@@ -100,3 +100,56 @@ tasks:
     desc: "Clean build artifacts"
     cmds:
       - rm -rf build/
+
+  release:
+    desc: "Create a GitHub release with all binaries (requires gh CLI)"
+    deps:
+      - build:all
+    cmds:
+      - |
+        gh release create {{.VERSION}} \
+          build/{{.BINARY_NAME}}-darwin-amd64 \
+          build/{{.BINARY_NAME}}-darwin-arm64 \
+          build/{{.BINARY_NAME}}-linux-amd64 \
+          build/{{.BINARY_NAME}}-linux-arm64 \
+          build/{{.BINARY_NAME}}-linux-arm \
+          build/{{.BINARY_NAME}}-windows-amd64.exe \
+          build/{{.BINARY_NAME}}-windows-arm64.exe \
+          --title "{{.VERSION}}" \
+          --generate-notes
+
+  release:draft:
+    desc: "Create a draft GitHub release with all binaries (requires gh CLI)"
+    deps:
+      - build:all
+    cmds:
+      - |
+        gh release create {{.VERSION}} \
+          build/{{.BINARY_NAME}}-darwin-amd64 \
+          build/{{.BINARY_NAME}}-darwin-arm64 \
+          build/{{.BINARY_NAME}}-linux-amd64 \
+          build/{{.BINARY_NAME}}-linux-arm64 \
+          build/{{.BINARY_NAME}}-linux-arm \
+          build/{{.BINARY_NAME}}-windows-amd64.exe \
+          build/{{.BINARY_NAME}}-windows-arm64.exe \
+          --title "{{.VERSION}}" \
+          --generate-notes \
+          --draft
+
+  release:prerelease:
+    desc: "Create a pre-release GitHub release with all binaries (requires gh CLI)"
+    deps:
+      - build:all
+    cmds:
+      - |
+        gh release create {{.VERSION}} \
+          build/{{.BINARY_NAME}}-darwin-amd64 \
+          build/{{.BINARY_NAME}}-darwin-arm64 \
+          build/{{.BINARY_NAME}}-linux-amd64 \
+          build/{{.BINARY_NAME}}-linux-arm64 \
+          build/{{.BINARY_NAME}}-linux-arm \
+          build/{{.BINARY_NAME}}-windows-amd64.exe \
+          build/{{.BINARY_NAME}}-windows-arm64.exe \
+          --title "{{.VERSION}}" \
+          --generate-notes \
+          --prerelease
