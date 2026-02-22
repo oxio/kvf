@@ -5,6 +5,9 @@ vars:
   VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
   LDFLAGS: -s -w -X main.version={{.VERSION}}
+  DOCS_DIR: docs
+  PAGER:
+    sh: echo "${PAGER:-less -R}"
 
 tasks:
 
@@ -153,3 +156,56 @@ tasks:
           --title "{{.VERSION}}" \
           --generate-notes \
           --prerelease
+
+  docs:
+    desc: "View documentation (usage: task docs DOC=<docname>)"
+    vars:
+      DOC_NAME: '{{.DOC | default "README"}}'
+      DOC_FILE: '{{.DOCS_DIR}}/{{.DOC_NAME}}.adoc'
+    cmds:
+      - |
+        if [ -f "{{.DOC_FILE}}" ]; then
+          {{.PAGER}} "{{.DOC_FILE}}"
+        elif [ -f "{{.DOC_NAME}}.adoc" ]; then
+          {{.PAGER}} "{{.DOC_NAME}}.adoc"
+        else
+          echo "Document not found: {{.DOC_FILE}}"
+          echo ""
+          echo "Available documentation:"
+          task docs:list
+        fi
+
+  docs:list:
+    desc: "List available documentation"
+    silent: true
+    cmds:
+      - |
+        echo "In docs/:"
+        if ls {{.DOCS_DIR}}/*.adoc 1>/dev/null 2>&1; then
+          ls -1 {{.DOCS_DIR}}/*.adoc | xargs -n1 basename | sed 's/.adoc$//' | while read doc; do
+            echo "  - $doc"
+          done
+        else
+          echo "  (none)"
+        fi
+        echo ""
+        echo "In root:"
+        if ls *.adoc 1>/dev/null 2>&1; then
+          ls -1 *.adoc | sed 's/.adoc$//' | while read doc; do
+            echo "  - $doc"
+          done
+        else
+          echo "  (none)"
+        fi
+
+  docs:all:
+    desc: "View all documentation concatenated"
+    cmds:
+      - |
+        for doc in {{.DOCS_DIR}}/*.adoc; do
+          if [ -f "$doc" ]; then
+            echo "=== $(basename "$doc" .adoc) ==="
+            cat "$doc"
+            echo -e "\n\n"
+          fi
+        done | {{.PAGER}}

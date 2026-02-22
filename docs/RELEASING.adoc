@@ -1,0 +1,267 @@
+= Release Process
+
+This document describes how to create and publish releases for the kvf project.
+
+== Prerequisites
+
+Before creating a release, ensure you have the following tools installed and configured:
+
+[cols="1,3,2"]
+|===
+| Tool | Purpose | Check Command
+
+| `git`
+| Version control
+| `git --version`
+
+| `go`
+| Build binaries
+| `go version`
+
+| `task`
+| Task runner (go-task)
+| `task --version`
+
+| `gh`
+| GitHub CLI for releases
+| `gh --version`
+|===
+
+=== GitHub CLI Authentication
+
+Ensure you're authenticated with GitHub:
+
+[source,bash]
+----
+gh auth status
+----
+
+If not authenticated:
+
+[source,bash]
+----
+gh auth login
+----
+
+== Pre-Release Checklist
+
+Before creating a release, verify the following:
+
+[cols="1,3"]
+|===
+| Check | Command
+
+| All tests pass
+| `task test`
+
+| Working tree is clean
+| `git status`
+
+| On main branch
+| `git branch --show-current`
+
+| All changes are pushed
+| `git log origin/main..HEAD`
+|===
+
+== Version Naming Convention
+
+This project follows https://semver.org/[Semantic Versioning]:
+
+* Format: `vMAJOR.MINOR.PATCH` (e.g., `v1.0.0`)
+* Pre-release suffixes: `-alpha.N`, `-beta.N`, `-rc.N`
+
+=== Examples
+
+[cols="1,2"]
+|===
+| Version Type | Example
+
+| Initial release
+| `v1.0.0`
+
+| Bug fix
+| `v1.0.1`
+
+| New feature
+| `v1.1.0`
+
+| Breaking change
+| `v2.0.0`
+
+| Alpha release
+| `v1.0.0-alpha.1`
+
+| Beta release
+| `v1.0.0-beta.1`
+
+| Release candidate
+| `v1.0.0-rc.1`
+|===
+
+== Release Types
+
+[cols="1,3,2"]
+|===
+| Type | Task | Description
+
+| Full Release
+| `task release`
+| Production release, publicly visible
+
+| Draft Release
+| `task release:draft`
+| Created as draft for review before publishing
+
+| Pre-release
+| `task release:prerelease`
+| Alpha/beta/rc versions, marked as pre-release
+|===
+
+NOTE: All release tasks automatically build binaries for all supported platforms (darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, linux/arm, windows/amd64, windows/arm64). You do not need to run `task build:all` separately.
+
+== Step-by-Step Release Process
+
+=== Standard Release
+
+[source,bash]
+----
+# 1. Run tests
+task test
+
+# 2. Ensure working tree is clean
+git status
+
+# 3. Create an annotated tag
+git tag -a v1.0.0 -m "Release v1.0.0"
+
+# 4. Push the tag to GitHub
+git push origin v1.0.0
+
+# 5. Create the release (binaries are built automatically)
+task release
+----
+
+=== Draft Release (for review)
+
+[source,bash]
+----
+# 1. Create and push tag
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+
+# 2. Create draft release
+task release:draft
+
+# 3. Review on GitHub: https://github.com/oxio/kvf/releases
+
+# 4. Publish manually when ready
+----
+
+=== Pre-release (alpha/beta/rc)
+
+[source,bash]
+----
+# 1. Create and push tag with pre-release suffix
+git tag -a v1.0.0-beta.1 -m "Beta release v1.0.0-beta.1"
+git push origin v1.0.0-beta.1
+
+# 2. Create pre-release
+task release:prerelease
+----
+
+== Post-Release Verification
+
+After creating a release, verify:
+
+. **GitHub Releases Page**: Check https://github.com/oxio/kvf/releases
+. **Binary Assets**: Ensure all 7 binaries are attached
+. **Installation Test**: Test the install script
+
+.Test installation
+[source,bash]
+----
+# Test in a clean environment
+curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
+kvf --version
+----
+
+== Troubleshooting
+
+=== Tag Already Exists
+
+If the tag already exists locally:
+
+[source,bash]
+----
+# Delete local tag
+git tag -d v1.0.0
+
+# Delete remote tag
+git push origin --delete v1.0.0
+
+# Recreate tag
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+----
+
+=== Release Creation Failed
+
+. Check GitHub CLI authentication: `gh auth status`
+. Verify you have push access to the repository
+. Check if the tag exists on GitHub: `git ls-remote --tags origin`
+
+=== Missing Binaries in Release
+
+If binaries are missing or corrupted:
+
+[source,bash]
+----
+# Clean and rebuild
+task clean
+task build:all
+
+# Verify binaries exist
+ls -la build/
+
+# Recreate release (delete existing first if needed)
+task release
+----
+
+=== Version Shows as "dev"
+
+If the installed version shows as "dev" instead of the actual version:
+
+. Ensure you're installing from a tagged release
+. Check that the binary was built with ldflags: `go build -ldflags "-s -w -X main.version=v1.0.0"`
+
+== Quick Reference
+
+[cols="1,3"]
+|===
+| Action | Command
+
+| Run tests
+| `task test`
+
+| Build all binaries
+| `task build:all`
+
+| Create tag
+| `git tag -a v1.0.0 -m "Release v1.0.0"`
+
+| Push tag
+| `git push origin v1.0.0`
+
+| Create release
+| `task release`
+
+| Create draft release
+| `task release:draft`
+
+| Create pre-release
+| `task release:prerelease`
+
+| Clean build artifacts
+| `task clean`
+|===

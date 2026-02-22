@@ -197,3 +197,25 @@ KEY="This has an \"escaped\" quote inside"
 * [*] Concurrent R/W operations
 * [*] Reading multiple files with single command
 * [*] Support for multi-line values
+
+== Documentation
+
+Additional documentation is available in the `docs/` directory:
+
+* link:docs/RELEASING.adoc[Release Process] - How to create and publish releases
+
+=== Viewing Documentation
+
+If you have https://taskfile.dev/[Task] installed, you can view documentation from the command line:
+
+[source, bash]
+----
+# List available documentation
+task docs:list
+
+# View a specific document
+task docs DOC=RELEASING
+
+# View README (from root)
+task docs DOC=README
+----
