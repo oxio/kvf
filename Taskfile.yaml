@@ -2,6 +2,9 @@ version: '3'
 
 vars:
   BINARY_NAME: kvf
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  LDFLAGS: -s -w -X main.version={{.VERSION}}
 
 tasks:
 
@@ -15,10 +18,15 @@ tasks:
     cmds:
       - go test -v ./...
 
-  build:
-    desc: "Build binary"
+  print-version:
+    desc: "Print version"
     cmds:
-      - go build -o build/{{.BINARY_NAME}}
+      - echo "{{.VERSION}}"
+
+  build:
+    desc: "Build binary for current platform"
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}
 
   build:small:
     desc: "Build small binary"
@@ -29,3 +37,76 @@ tasks:
     desc: "Build smaller binary"
     cmds:
       - go build -ldflags "-s -w" -o build/{{.BINARY_NAME}}
+
+  build:all:
+    desc: "Build binaries for all supported architectures"
+    deps:
+      - build:darwin-amd64
+      - build:darwin-arm64
+      - build:linux-amd64
+      - build:linux-arm64
+      - build:linux-arm
+      - build:windows-amd64
+      - build:windows-arm64
+
+  build:darwin-amd64:
+    desc: "Build binary for Darwin (macOS) amd64"
+    env:
+      GOOS: darwin
+      GOARCH: amd64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-darwin-amd64
+
+  build:darwin-arm64:
+    desc: "Build binary for Darwin (macOS) arm64"
+    env:
+      GOOS: darwin
+      GOARCH: arm64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-darwin-arm64
+
+  build:linux-amd64:
+    desc: "Build binary for Linux amd64"
+    env:
+      GOOS: linux
+      GOARCH: amd64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-linux-amd64
+
+  build:linux-arm64:
+    desc: "Build binary for Linux arm64"
+    env:
+      GOOS: linux
+      GOARCH: arm64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-linux-arm64
+
+  build:linux-arm:
+    desc: "Build binary for Linux arm (32-bit)"
+    env:
+      GOOS: linux
+      GOARCH: arm
+      GOARM: 7
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-linux-arm
+
+  build:windows-amd64:
+    desc: "Build binary for Windows amd64"
+    env:
+      GOOS: windows
+      GOARCH: amd64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-windows-amd64.exe
+
+  build:windows-arm64:
+    desc: "Build binary for Windows arm64"
+    env:
+      GOOS: windows
+      GOARCH: arm64
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}-windows-arm64.exe
+
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -rf build/

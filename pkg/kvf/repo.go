@@ -36,6 +36,10 @@ func (r *FileRepo) FindAll() (*[]*Item, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Check if we ended in the middle of a multi-line value
+	if r.parser.IsInMultiLine() {
+		return nil, fmt.Errorf("unclosed multi-line value for key: %s", r.parser.GetCurrentKey())
+	}
 	return collection.Items, nil
 }
 
@@ -48,6 +52,10 @@ func (r *FileRepo) Get(key string) (*Item, error) {
 	err := r.adapter.ReadByLine(r.makeReader(collection))
 	if err != nil {
 		return nil, err
+	}
+	// Check if we ended in the middle of a multi-line value
+	if r.parser.IsInMultiLine() {
+		return nil, fmt.Errorf("unclosed multi-line value for key: %s", r.parser.GetCurrentKey())
 	}
 
 	for _, item := range *collection.Items {
@@ -72,12 +80,36 @@ func (r *FileRepo) Set(item *Item) error {
 }
 
 func (r *FileRepo) makeReader(collection *ItemCollection) fileop.ReaderFunc {
+	// Track the current multi-line item being accumulated
+	var currentMultiLineItem *Item
+
 	return func(line string) error {
 		item, err := r.parser.Parse(line)
 		if err != nil {
 			return err
 		}
-		*collection.Items = append(*collection.Items, item)
+
+		switch item.ParseState {
+		case ParseStateMultiLineStart:
+			// Start accumulating a multi-line value
+			currentMultiLineItem = item
+		case ParseStateMultiLineContinue:
+			// Continue accumulating - update the value
+			if currentMultiLineItem != nil {
+				currentMultiLineItem.Val = item.Val
+			}
+		case ParseStateComplete:
+			if currentMultiLineItem != nil {
+				// Multi-line just completed - use the completed item's value
+				currentMultiLineItem.Val = item.Val
+				currentMultiLineItem.ParseState = ParseStateComplete
+				*collection.Items = append(*collection.Items, currentMultiLineItem)
+				currentMultiLineItem = nil
+			} else {
+				// Regular complete item
+				*collection.Items = append(*collection.Items, item)
+			}
+		}
 		return nil
 	}
 }
