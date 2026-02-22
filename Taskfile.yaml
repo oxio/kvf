@@ -28,16 +28,6 @@ tasks:
     cmds:
       - go build -ldflags "{{.LDFLAGS}}" -o build/{{.BINARY_NAME}}
 
-  build:small:
-    desc: "Build small binary"
-    cmds:
-      - go build -ldflags "-w" -o build/{{.BINARY_NAME}}
-
-  build:smaller:
-    desc: "Build smaller binary"
-    cmds:
-      - go build -ldflags "-s -w" -o build/{{.BINARY_NAME}}
-
   build:all:
     desc: "Build binaries for all supported architectures"
     deps:
