@@ -4,20 +4,83 @@ Super simple file based Key-Value command line tool that works with concurrent R
 
 == Installation
 
-=== go install
+=== Quick Install (Recommended)
+
+One-liner that auto-detects your OS and architecture:
+
+[source, bash]
+----
+# Using curl
+curl -sL https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
+
+# Using wget
+wget -qO- https://raw.githubusercontent.com/oxio/kvf/main/install.sh | bash
+----
+
+=== Go Install
+
+If you have Go installed:
 
 [source, bash]
 ----
 go install github.com/oxio/kvf@latest
 ----
 
-=== wget
+=== Manual Download
+
+Download the appropriate binary for your platform from the https://github.com/oxio/kvf/releases/latest[latest release].
+
+==== Linux
 
 [source, bash]
 ----
-wget https://github.com/oxio/kvf/releases/latest/download/kvf
+# amd64 (x86_64)
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-linux-amd64 -o kvf
 chmod +x kvf
-mv kvf /usr/local/bin/
+sudo mv kvf /usr/local/bin/
+
+# arm64 (aarch64)
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-linux-arm64 -o kvf
+chmod +x kvf
+sudo mv kvf /usr/local/bin/
+
+# arm (32-bit, armv7)
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-linux-arm -o kvf
+chmod +x kvf
+sudo mv kvf /usr/local/bin/
+----
+
+==== macOS
+
+[source, bash]
+----
+# Apple Silicon (M1/M2/M3/M4/M5)
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-darwin-arm64 -o kvf
+chmod +x kvf
+sudo mv kvf /usr/local/bin/
+
+# Intel (x86_64)
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-darwin-amd64 -o kvf
+chmod +x kvf
+sudo mv kvf /usr/local/bin/
+----
+
+==== Windows
+
+[source, powershell]
+----
+# amd64 (x86_64)
+Invoke-WebRequest -Uri "https://github.com/oxio/kvf/releases/latest/download/kvf-windows-amd64.exe" -OutFile "kvf.exe"
+
+# arm64
+Invoke-WebRequest -Uri "https://github.com/oxio/kvf/releases/latest/download/kvf-windows-arm64.exe" -OutFile "kvf.exe"
+----
+
+Or using PowerShell with `curl` alias:
+
+[source, powershell]
+----
+curl -sL https://github.com/oxio/kvf/releases/latest/download/kvf-windows-amd64.exe -o kvf.exe
 ----
 
 == Usage
@@ -43,14 +106,14 @@ NOTE: The keys are case-sensitive.
 
 The value from last file in which the key is found will be returned.
 
-.Set different values for two files
+.1. Set different values for two files
 [source, bash]
 ----
 kvf set .env       APP_ENV prod
 kvf set .env.local APP_ENV dev
 ----
 
-.Get the value from first and second file in that order
+.2. Get the value from first and second file in that order
 [source, bash]
 ----
 kvf get .env .env.local APP_ENV
@@ -63,14 +126,14 @@ dev⏎
 
 === Setting values for multiple files
 
-.Set the value for both files
+.1. Set the value for both files
 [source, bash]
 ----
 kvf set .env .env.local APP_PORT 8000
 ----
 
 
-.Get from first file
+.2. Get from first file
 [source, bash]
 ----
 kvf get .env APP_PORT
@@ -81,7 +144,7 @@ kvf get .env APP_PORT
 8000
 ----
 
-.Get the value from second file
+.3. Get the value from second file only
 [source, bash]
 ----
 kvf get .env.local APP_PORT
