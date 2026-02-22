@@ -2,13 +2,14 @@ package lock
 
 import (
 	"fmt"
-	"github.com/OneOfOne/xxhash"
-	"github.com/gofrs/flock"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
+
+	"github.com/OneOfOne/xxhash"
+	"github.com/gofrs/flock"
 )
 
 var baseLockDir string
@@ -96,7 +97,14 @@ func init() {
 	if runtime.GOOS == "windows" {
 		baseLockDir = filepath.Join(os.TempDir(), "kvf-locks")
 	} else {
-		baseLockDir = "/var/lock/kvf"
+		// Use user's cache directory or temp directory for locks
+		// to avoid permission issues with /var/lock
+		cacheDir, err := os.UserCacheDir()
+		if err != nil {
+			baseLockDir = filepath.Join(os.TempDir(), "kvf-locks")
+		} else {
+			baseLockDir = filepath.Join(cacheDir, "kvf-locks")
+		}
 	}
 
 	err := os.MkdirAll(baseLockDir, 0755)

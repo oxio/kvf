@@ -103,6 +103,24 @@ key=value
 key = value
 key="value"
 key='value'
+
+# Multi-line values (both quote types supported)
+PRIVATE_KEY="-----BEGIN KEY-----
+MIIEpAIBAAKCAQEA0Z
+-----END KEY-----"
+
+MESSAGE='Hello
+World!'
+----
+
+=== Multi-line Values
+
+Multi-line values are supported using both double and single quotes. The opening quote starts the value, and the matching closing quote ends it. All content between, including newlines, is preserved.
+
+To include a literal quote character inside a multi-line value, escape it with a backslash:
+
+----
+KEY="This has an \"escaped\" quote inside"
 ----
 
 == Features
@@ -111,4 +129,4 @@ key='value'
 * [*] Support for simple full-line comments (line must start with `#` character)
 * [*] Concurrent R/W operations
 * [*] Reading multiple files with single command
-* [ ] Support for multi-line values
+* [*] Support for multi-line values

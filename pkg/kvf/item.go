@@ -1,23 +1,44 @@
 package kvf
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
+
+// ParseState represents the parsing state of an Item
+type ParseState int
+
+const (
+	// ParseStateComplete indicates the item is fully parsed
+	ParseStateComplete ParseState = iota
+	// ParseStateMultiLineStart indicates a multi-line value has started but not completed
+	ParseStateMultiLineStart
+	// ParseStateMultiLineContinue indicates a multi-line value is continuing
+	ParseStateMultiLineContinue
+)
 
 type Item struct {
-	IsEmpty   bool
-	IsComment bool
-	Key       string
-	Val       string
-	Quote     string
+	IsEmpty    bool
+	IsComment  bool
+	Key        string
+	Val        string
+	Quote      string
+	ParseState ParseState
 }
 
 func NewItem(key string, val string) (*Item, error) {
 	if "" == key {
 		return nil, fmt.Errorf("key is empty")
 	}
-	return &Item{
+	item := &Item{
 		Key: key,
 		Val: val,
-	}, nil
+	}
+	// If value contains newlines, wrap it in double quotes
+	if strings.Contains(val, "\n") {
+		item.Quote = "\""
+	}
+	return item, nil
 }
 
 type ItemCollection struct {
