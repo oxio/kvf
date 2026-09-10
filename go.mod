@@ -1,6 +1,6 @@
 module github.com/oxio/kvf/v2
 
-go 1.22.0
+go 1.27.0
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8
