@@ -2,7 +2,7 @@ package fileop
 
 import (
 	"bufio"
-	"github.com/oxio/kvf/internal/lock"
+	"github.com/oxio/kvf/v2/internal/lock"
 	"io"
 	"os"
 )

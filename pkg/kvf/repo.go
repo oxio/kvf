@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/oxio/kvf/internal/fileop"
+	"github.com/oxio/kvf/v2/internal/fileop"
 )
 
 type Repo interface {
