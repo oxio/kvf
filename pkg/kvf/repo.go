@@ -120,6 +120,9 @@ func (r *FileRepo) makeUpdater(collection *ItemCollection, incoming *Item) fileo
 		for k, item := range *collection.Items {
 			if item.Key == incoming.Key {
 				item.Val = incoming.Val
+				if incoming.Quote != "" {
+					item.Quote = incoming.Quote
+				}
 				(*collection.Items)[k] = item
 				found = true
 				break

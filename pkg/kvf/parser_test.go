@@ -1,6 +1,7 @@
 package kvf
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -239,6 +240,21 @@ func TestNewItem_WithNewlines(t *testing.T) {
 	assert.Equal(t, "key", item.Key)
 	assert.Equal(t, "line1\nline2", item.Val)
 	assert.Equal(t, `"`, item.Quote) // Should auto-set double quotes for multi-line
+}
+
+func TestNewItem_WithLeadingTrailingWhitespace(t *testing.T) {
+	for _, val := range []string{" value", "value ", "  value  ", " ", "\tvalue\t"} {
+		item, err := NewItem("key", val)
+		assert.NoError(t, err)
+		assert.Equal(t, `"`, item.Quote, "expected quoting for %q", val)
+		assert.Equal(t, fmt.Sprintf("key=\"%s\"\n", val), item.ToLine())
+	}
+}
+
+func TestNewItem_WithInnerSpacesOnly(t *testing.T) {
+	item, err := NewItem("key", "value with spaces")
+	assert.NoError(t, err)
+	assert.Equal(t, "", item.Quote)
 }
 
 func TestNewItem_EmptyKey(t *testing.T) {

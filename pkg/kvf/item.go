@@ -34,8 +34,9 @@ func NewItem(key string, val string) (*Item, error) {
 		Key: key,
 		Val: val,
 	}
-	// If value contains newlines, wrap it in double quotes
-	if strings.Contains(val, "\n") {
+	// Newlines and leading/trailing whitespace would be lost on the next
+	// read, so values containing them must be wrapped in double quotes.
+	if strings.Contains(val, "\n") || val != strings.TrimSpace(val) {
 		item.Quote = "\""
 	}
 	return item, nil
