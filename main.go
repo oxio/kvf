@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"runtime/debug"
 
 	"github.com/oxio/kvf/v2/cmd"
@@ -30,5 +31,6 @@ func init() {
 
 func main() {
 	cmd.SetVersion(version)
+	cmd.SetOut(os.Stdout)
 	cmd.Execute()
 }
