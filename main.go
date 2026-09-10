@@ -3,7 +3,7 @@ package main
 import (
 	"runtime/debug"
 
-	"github.com/oxio/kvf/cmd"
+	"github.com/oxio/kvf/v2/cmd"
 )
 
 // version is set via ldflags during build: -X main.version=<version>
